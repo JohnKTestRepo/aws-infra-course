@@ -1,0 +1,54 @@
+name: Deploy AWS Dev Environment
+
+on:
+  push:
+    branches:
+      - main         # triggers on push to dev branch
+    paths:
+      - 'live/**'    # only trigger if files under live/ change
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+    environment: dev # uses GitHub environment named "dev"
+
+    steps:
+      # 1️⃣ Checkout repo
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      # 2️⃣ Configure AWS credentials
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
+          aws-region: us-east-2
+
+      # 3️⃣ Install Terraform
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.7.6
+
+      # 4️⃣ Install Terragrunt
+      - name: Install Terragrunt
+        run: |
+          curl -L https://github.com/gruntwork-io/terragrunt/releases/download/v0.57.5/terragrunt_linux_amd64 -o terragrunt
+          chmod +x terragrunt
+          sudo mv terragrunt /usr/local/bin/
+
+      # 5️⃣ Deploy VPC first
+      - name: Deploy VPC
+        working-directory: ./live/dev/vpc
+        run: terragrunt apply --auto-approve --terragrunt-non-interactive
+
+      # 6️⃣ Deploy S3 Website next
+      - name: Deploy S3 Website
+        working-directory: ./live/dev/s3_website
+        run: terragrunt apply --auto-approve --terragrunt-non-interactive
+
+      # 7️⃣ Deploy EC2 last (depends on VPC + S3)
+      - name: Deploy EC2
+        working-directory: ./live/dev/ec2
+        run: terragrunt apply --auto-approve --terragrunt-non-interactive
