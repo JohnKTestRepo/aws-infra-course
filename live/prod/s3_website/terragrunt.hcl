@@ -3,11 +3,12 @@ terraform {
 }
 
 include {
-  path = find_in_parent_folders()
+  path = find_in_parent_folders("root.hcl")
 }
 
 inputs = {
+  environment = local.environment
   region      = "us-east-2"
   bucket_name = "my-terraform-prod-website-${local.environment}"
-  tags        = merge(local.common_tags, { "Environment" = "prod" })
+  tags        = merge(local.common_tags, { "Environment" = local.environment })
 }

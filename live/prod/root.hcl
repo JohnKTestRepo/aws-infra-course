@@ -3,7 +3,7 @@ include {
 }
 
 locals {
-  environment = "dev"
+  environment = "prod"
 }
 
 remote_state {

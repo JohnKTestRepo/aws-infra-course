@@ -1,10 +1,10 @@
-# common terraform backend config for all environments
+# live/common.hcl
 locals {
   environment = basename(get_terragrunt_dir())
   common_tags = {
-    Project     = "AWS Infra Automation Course"
-    Owner       = "John Kennedy"
-    ManagedBy   = "Terragrunt"
+    Project   = "AWS Infra Automation Course"
+    Owner     = "John Kennedy"
+    ManagedBy = "Terragrunt"
   }
 }
 
@@ -18,6 +18,5 @@ remote_state {
     dynamodb_table = "terraform-locks"
   }
 }
-
 # Note: Update the region and bucket_name as per your requirements
 
