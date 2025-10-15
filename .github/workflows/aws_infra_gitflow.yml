@@ -102,6 +102,7 @@ jobs:
               echo "❌ Environment directory '$ENV' not found!"
               exit 1
             fi
+          fi
 
       - name: Validate Deployment
         if: needs.setup.outputs.is-cleanup != 'true'
