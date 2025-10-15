@@ -47,8 +47,12 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets[format('AWS_ACCESS_KEY_ID_{0}', upper(needs.setup.outputs.env-name))] }}
-          aws-secret-access-key: ${{ secrets[format('AWS_SECRET_ACCESS_KEY_{0}', upper(needs.setup.outputs.env-name))] }}
+          aws-access-key-id: ${{ needs.setup.outputs.env-name == 'prod' && secrets.AWS_ACCESS_KEY_ID_PROD || 
+                                  needs.setup.outputs.env-name == 'dev' && secrets.AWS_ACCESS_KEY_ID_DEV || 
+                                  needs.setup.outputs.env-name == 'cleanup' && secrets.AWS_ACCESS_KEY_ID_DEV }}
+          aws-secret-access-key: ${{ needs.setup.outputs.env-name == 'prod' && secrets.AWS_SECRET_ACCESS_KEY_PROD || 
+                                      needs.setup.outputs.env-name == 'dev' && secrets.AWS_SECRET_ACCESS_KEY_DEV || 
+                                      needs.setup.outputs.env-name == 'cleanup' && secrets.AWS_SECRET_ACCESS_KEY_DEV }}
           aws-region: ${{ env.AWS_REGION }}
 
       # 3️⃣ Install Terraform
