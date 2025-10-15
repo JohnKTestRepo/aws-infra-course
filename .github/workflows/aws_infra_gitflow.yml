@@ -44,56 +44,52 @@ jobs:
   deploy:
     needs: setup
     runs-on: ubuntu-latest
-    environment: ${{ needs.setup.outputs.env-name == 'prod' && 'prod' || needs.setup.outputs.env-name == 'dev' && 'dev' || '' }}
     if: needs.setup.outputs.env-name != 'unknown'
-    
+    environment: ${{ needs.setup.outputs.env-name == 'prod' && 'prod' || needs.setup.outputs.env-name == 'dev' && 'dev' || '' }}
+
     steps:
-      # 1️⃣ Checkout repo
       - name: Checkout Repo
         uses: actions/checkout@v3
 
-      # 2️⃣ Configure AWS credentials based on environment
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ 
-            needs.setup.outputs.env-name == 'prod' && secrets.AWS_ACCESS_KEY_ID_PROD ||
-            (needs.setup.outputs.env-name == 'dev' || needs.setup.outputs.env-name == 'cleanup') && secrets.AWS_ACCESS_KEY_ID_DEV}}
-          aws-secret-access-key: ${{ 
-            needs.setup.outputs.env-name == 'prod' && secrets.AWS_SECRET_KEY_PROD ||
-            (needs.setup.outputs.env-name == 'dev' || needs.setup.outputs.env-name == 'cleanup') && secrets.AWS_SECRET_KEY_DEV}}
-          aws-region: ${{ env.AWS_REGION }}
+      - name: Set AWS credentials env
+        run: |
+          ENV="${{ needs.setup.outputs.env-name }}"
+          if [[ "$ENV" == "prod" ]]; then
+            echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID_PROD }}" >> $GITHUB_ENV
+            echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_KEY_PROD }}" >> $GITHUB_ENV
+          else
+            # dev or cleanup uses dev secrets
+            echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID_DEV }}" >> $GITHUB_ENV
+            echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_KEY_DEV }}" >> $GITHUB_ENV
+          fi
 
-      # 3️⃣ Install Terraform
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      # 4️⃣ Install Terragrunt
       - name: Install Terragrunt
         run: |
           curl -L https://github.com/gruntwork-io/terragrunt/releases/download/${{ env.TERRAGRUNT_VERSION }}/terragrunt_linux_amd64 -o terragrunt
           chmod +x terragrunt
           sudo mv terragrunt /usr/local/bin/
+          terragrunt --version
 
-      # 5️⃣ Deploy or Destroy
-      - name: Deploy/Destroy Infrastructure
+      - name: Deploy / Destroy Infrastructure
         working-directory: live
         run: |
           ENV="${{ needs.setup.outputs.env-name }}"
           IS_CLEANUP="${{ needs.setup.outputs.is-cleanup }}"
-          
+
           if [[ "$IS_CLEANUP" == "true" ]]; then
             echo "🧹 Running destroy for cleanup branch..."
-            # Extract environment from cleanup branch name (e.g., cleanup-dev-123 -> dev)
             BRANCH_NAME="${GITHUB_REF##*/}"
             CLEAN_ENV=$(echo "$BRANCH_NAME" | sed 's/cleanup-//' | cut -d'-' -f1)
             echo "Cleaning environment: $CLEAN_ENV"
-            
+
             if [[ -d "$CLEAN_ENV" ]]; then
               cd "$CLEAN_ENV" || exit 1
-              terragrunt run-all destroy --auto-approve --terragrunt-non-interactive
+              terragrunt run -- run-all destroy --auto-approve --terragrunt-non-interactive
             else
               echo "❌ Environment directory '$CLEAN_ENV' not found!"
               exit 1
@@ -102,18 +98,17 @@ jobs:
             echo "🚀 Deploying environment: $ENV"
             if [[ -d "$ENV" ]]; then
               cd "$ENV" || exit 1
-              terragrunt run-all apply --auto-approve --terragrunt-non-interactive
+              terragrunt run -- run-all apply --auto-approve --terragrunt-non-interactive
             else
               echo "❌ Environment directory '$ENV' not found!"
               exit 1
             fi
-          fi
 
-      # 6️⃣ Optional: Validate deployment
       - name: Validate Deployment
         if: needs.setup.outputs.is-cleanup != 'true'
         working-directory: live
         run: |
           ENV="${{ needs.setup.outputs.env-name }}"
           cd "$ENV"
-          terragrunt run-all validate
+          terragrunt run -- run-all validate
+
