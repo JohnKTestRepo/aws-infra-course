@@ -74,35 +74,39 @@ jobs:
           sudo mv terragrunt /usr/local/bin/
           terragrunt --version
 
-      - name: Deploy / Destroy Infrastructure
+      # 5️⃣ Deploy or Destroy
+      - name: Deploy/Destroy Infrastructure
         working-directory: live
         run: |
-          ENV="${{ needs.setup.outputs.env-name }}"
-          IS_CLEANUP="${{ needs.setup.outputs.is-cleanup }}"
-
-          if [[ "$IS_CLEANUP" == "true" ]]; then
+            ENV="${{ needs.setup.outputs.env-name }}"
+            IS_CLEANUP="${{ needs.setup.outputs.is-cleanup }}"
+            
+            if [[ "$IS_CLEANUP" == "true" ]]; then
             echo "🧹 Running destroy for cleanup branch..."
+            # Extract environment from cleanup branch name (e.g., cleanup-dev-123 -> dev)
             BRANCH_NAME="${GITHUB_REF##*/}"
             CLEAN_ENV=$(echo "$BRANCH_NAME" | sed 's/cleanup-//' | cut -d'-' -f1)
             echo "Cleaning environment: $CLEAN_ENV"
-
+            
             if [[ -d "$CLEAN_ENV" ]]; then
-              cd "$CLEAN_ENV" || exit 1
-              terragrunt run-all destroy --auto-approve
+                cd "$CLEAN_ENV" || exit 1
+                echo "Running terragrunt destroy in $CLEAN_ENV..."
+                terragrunt run-all destroy -auto-approve
             else
-              echo "❌ Environment directory '$CLEAN_ENV' not found!"
-              exit 1
+                echo "❌ Environment directory '$CLEAN_ENV' not found!"
+                exit 1
             fi
-          else
+            else
             echo "🚀 Deploying environment: $ENV"
             if [[ -d "$ENV" ]]; then
-              cd "$ENV" || exit 1
-              terragrunt run-all apply --auto-approve
+                cd "$ENV" || exit 1
+                echo "Running terragrunt apply in $ENV..."
+                terragrunt run-all apply -auto-approve
             else
-              echo "❌ Environment directory '$ENV' not found!"
-              exit 1
+                echo "❌ Environment directory '$ENV' not found!"
+                exit 1
             fi
-          fi
+            fi
 
       - name: Validate Deployment
         if: needs.setup.outputs.is-cleanup != 'true'
