@@ -12,7 +12,7 @@ env:
   TERRAGRUNT_TFPATH: terraform
   AWS_REGION: us-east-2
   TF_VERSION: 1.13.3
-  TERRAGRUNT_VERSION: 0.90.0
+  TERRAGRUNT_VERSION: 0.57.5
 
 jobs:
   setup:
