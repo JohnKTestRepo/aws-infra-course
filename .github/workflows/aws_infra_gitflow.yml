@@ -6,8 +6,8 @@ on:
       - dev
       - main
       - 'cleanup/*'   # auto-destroy when cleanup branches are pushed
-    paths:
-      - 'live/**'
+    # paths:
+    #   - 'live/**'
 
 env:
   TF_INPUT: false
