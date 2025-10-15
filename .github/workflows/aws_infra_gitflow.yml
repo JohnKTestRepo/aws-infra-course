@@ -88,7 +88,7 @@ jobs:
 
             if [[ -d "$CLEAN_ENV" ]]; then
               cd "$CLEAN_ENV" || exit 1
-              tterragrunt run-all destroy --auto-approve --terragrunt-non-interactive
+              terragrunt run-all destroy -auto-approve
             else
               echo "❌ Environment directory '$CLEAN_ENV' not found!"
               exit 1
@@ -97,7 +97,7 @@ jobs:
             echo "🚀 Deploying environment: $ENV"
             if [[ -d "$ENV" ]]; then
               cd "$ENV" || exit 1
-              terragrunt run-all apply --auto-approve --terragrunt-non-interactive
+              terragrunt run-all apply -auto-approve
             else
               echo "❌ Environment directory '$ENV' not found!"
               exit 1
