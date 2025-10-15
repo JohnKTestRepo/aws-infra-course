@@ -91,7 +91,7 @@ jobs:
             if [[ -d "$CLEAN_ENV" ]]; then
                 cd "$CLEAN_ENV" || exit 1
                 echo "Running terragrunt destroy in $CLEAN_ENV..."
-                terragrunt run --all destroy --terragrunt-non-interactive
+                terragrunt run --all destroy 
             else
                 echo "❌ Environment directory '$CLEAN_ENV' not found!"
                 exit 1
@@ -101,7 +101,7 @@ jobs:
             if [[ -d "$ENV" ]]; then
                 cd "$ENV" || exit 1
                 echo "Running terragrunt apply in $ENV..."
-                terragrunt run --all apply --terragrunt-non-interactive
+                terragrunt run --all apply 
             else
                 echo "❌ Environment directory '$ENV' not found!"
                 exit 1
