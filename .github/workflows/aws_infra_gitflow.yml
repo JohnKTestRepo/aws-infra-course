@@ -9,7 +9,7 @@ on:
 
 env:
   TF_INPUT: false
-  TERRAGRUNT_TFPATH: terraform
+  TG_TF_PATH: terraform
   AWS_REGION: us-east-2
   TF_VERSION: 1.13.4
 
@@ -114,5 +114,5 @@ jobs:
         run: |
           ENV="${{ needs.setup.outputs.env-name }}"
           cd "$ENV"
-          terragrunt run-all validate 
+          terragrunt run --all validate --terragrunt-non-interactive
 
