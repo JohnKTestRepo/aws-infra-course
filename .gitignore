@@ -1,0 +1,40 @@
+# Terraform state files
+*.tfstate
+*.tfstate.backup
+*.tfvars
+*.auto.tfvars
+
+# Terragrunt / Terraform caches
+.terragrunt-cache/
+*.terragrunt-cache/*
+.terraform-cache/*
+.terraform/*
+*.terraform/*
+
+# Terraform plan files
+*.tfplan
+
+# Sensitive variable files
+*.tfvars
+*.auto.tfvars
+
+# Local override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Backup files
+*.bak
+*.tmp
+
+# Logs
+*.log
