@@ -12,7 +12,6 @@ env:
   TERRAGRUNT_TFPATH: terraform
   AWS_REGION: us-east-2
   TF_VERSION: 1.13.3
-  TERRAGRUNT_VERSION: 0.57.5
 
 jobs:
   setup:
@@ -70,7 +69,7 @@ jobs:
 
       - name: Install Terragrunt
         run: |
-          curl -L https://github.com/gruntwork-io/terragrunt/releases/download/${{ env.TERRAGRUNT_VERSION }}/terragrunt_linux_amd64 -o terragrunt
+          curl -L https://github.com/gruntwork-io/terragrunt/releases/download/v0.57.5/terragrunt_linux_amd64 -o terragrunt
           chmod +x terragrunt
           sudo mv terragrunt /usr/local/bin/
           terragrunt --version
