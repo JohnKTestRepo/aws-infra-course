@@ -6,8 +6,6 @@ on:
       - dev
       - main
       - 'cleanup/*'   # auto-destroy when cleanup branches are pushed
-    # paths:
-    #   - 'live/**'
 
 env:
   TF_INPUT: false
@@ -21,45 +19,56 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       env-name: ${{ steps.set-env.outputs.env-name }}
+      is-cleanup: ${{ steps.set-env.outputs.is-cleanup }}
     steps:
       - name: Determine Environment
         id: set-env
         run: |
-          if [[ "${GITHUB_REF##*/}" == "main" ]]; then
+          BRANCH="${GITHUB_REF##*/}"
+          if [[ "$BRANCH" == "main" ]]; then
             echo "env-name=prod" >> $GITHUB_OUTPUT
-          elif [[ "${GITHUB_REF##*/}" == "dev" ]]; then
+            echo "is-cleanup=false" >> $GITHUB_OUTPUT
+          elif [[ "$BRANCH" == "dev" ]]; then
             echo "env-name=dev" >> $GITHUB_OUTPUT
-          else
+            echo "is-cleanup=false" >> $GITHUB_OUTPUT
+          elif [[ "$BRANCH" == cleanup-* ]]; then
             echo "env-name=cleanup" >> $GITHUB_OUTPUT
+            echo "is-cleanup=true" >> $GITHUB_OUTPUT
+          else
+            echo "env-name=unknown" >> $GITHUB_OUTPUT
+            echo "is-cleanup=false" >> $GITHUB_OUTPUT
           fi
+          echo "Branch: $BRANCH"
+          echo "Environment: $(cat $GITHUB_OUTPUT | grep env-name | cut -d'=' -f2)"
 
   deploy:
     needs: setup
     runs-on: ubuntu-latest
-    environment: ${{ needs.setup.outputs.env-name }}
-
+    environment: ${{ needs.setup.outputs.env-name == 'prod' && 'prod' || needs.setup.outputs.env-name == 'dev' && 'dev' || '' }}
+    if: needs.setup.outputs.env-name != 'unknown'
+    
     steps:
       # 1️⃣ Checkout repo
       - name: Checkout Repo
         uses: actions/checkout@v3
 
-      # 2️⃣ Configure AWS credentials
+      # 2️⃣ Configure AWS credentials based on environment
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ needs.setup.outputs.env-name == 'prod' && secrets.AWS_ACCESS_KEY_ID_PROD || 
-                                  needs.setup.outputs.env-name == 'dev' && secrets.AWS_ACCESS_KEY_ID_DEV || 
-                                  needs.setup.outputs.env-name == 'cleanup' && secrets.AWS_ACCESS_KEY_ID_DEV }}
-          aws-secret-access-key: ${{ needs.setup.outputs.env-name == 'prod' && secrets.AWS_SECRET_ACCESS_KEY_PROD || 
-                                      needs.setup.outputs.env-name == 'dev' && secrets.AWS_SECRET_ACCESS_KEY_DEV || 
-                                      needs.setup.outputs.env-name == 'cleanup' && secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-access-key-id: ${{ 
+            needs.setup.outputs.env-name == 'prod' && secrets.AWS_ACCESS_KEY_ID_PROD ||
+            (needs.setup.outputs.env-name == 'dev' || needs.setup.outputs.env-name == 'cleanup') && secrets.AWS_ACCESS_KEY_ID_DEV}}
+          aws-secret-access-key: ${{ 
+            needs.setup.outputs.env-name == 'prod' && secrets.AWS_SECRET_KEY_PROD ||
+            (needs.setup.outputs.env-name == 'dev' || needs.setup.outputs.env-name == 'cleanup') && secrets.AWS_SECRET_KEY_DEV}}
           aws-region: ${{ env.AWS_REGION }}
 
       # 3️⃣ Install Terraform
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.13.3
+          terraform_version: ${{ env.TF_VERSION }}
 
       # 4️⃣ Install Terragrunt
       - name: Install Terragrunt
@@ -73,16 +82,38 @@ jobs:
         working-directory: live
         run: |
           ENV="${{ needs.setup.outputs.env-name }}"
+          IS_CLEANUP="${{ needs.setup.outputs.is-cleanup }}"
           
-          if [[ "$ENV" == "cleanup" ]]; then
+          if [[ "$IS_CLEANUP" == "true" ]]; then
             echo "🧹 Running destroy for cleanup branch..."
-            # Determine environment from cleanup branch name
-            CLEAN_ENV=$(echo "${GITHUB_REF##*/}" | cut -d'-' -f2)
+            # Extract environment from cleanup branch name (e.g., cleanup-dev-123 -> dev)
+            BRANCH_NAME="${GITHUB_REF##*/}"
+            CLEAN_ENV=$(echo "$BRANCH_NAME" | sed 's/cleanup-//' | cut -d'-' -f1)
             echo "Cleaning environment: $CLEAN_ENV"
-            cd $CLEAN_ENV || exit 1
-            terragrunt run-all destroy --auto-approve --terragrunt-non-interactive
+            
+            if [[ -d "$CLEAN_ENV" ]]; then
+              cd "$CLEAN_ENV" || exit 1
+              terragrunt run-all destroy --auto-approve --terragrunt-non-interactive
+            else
+              echo "❌ Environment directory '$CLEAN_ENV' not found!"
+              exit 1
+            fi
           else
             echo "🚀 Deploying environment: $ENV"
-            cd $ENV
-            terragrunt run-all apply --auto-approve --terragrunt-non-interactive
+            if [[ -d "$ENV" ]]; then
+              cd "$ENV" || exit 1
+              terragrunt run-all apply --auto-approve --terragrunt-non-interactive
+            else
+              echo "❌ Environment directory '$ENV' not found!"
+              exit 1
+            fi
           fi
+
+      # 6️⃣ Optional: Validate deployment
+      - name: Validate Deployment
+        if: needs.setup.outputs.is-cleanup != 'true'
+        working-directory: live
+        run: |
+          ENV="${{ needs.setup.outputs.env-name }}"
+          cd "$ENV"
+          terragrunt run-all validate

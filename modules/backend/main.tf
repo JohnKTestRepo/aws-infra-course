@@ -1,5 +1,5 @@
 terraform {
-  backend "local" {} # placeholder, overridden by Terragrunt
+  backend "s3" {}
 }
 
 provider "aws" {
@@ -9,6 +9,8 @@ provider "aws" {
 # Your resources (S3 bucket, etc.)
 resource "aws_s3_bucket" "tf_state" {
   bucket = var.bucket_name
+  region = var.region
+  force_destroy = true
 }
 
 
